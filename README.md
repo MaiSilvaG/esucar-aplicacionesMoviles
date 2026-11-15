@@ -67,7 +67,7 @@ app/src/main/java/com/example/esucar/
 
 | Rol        | Correo         | Contraseña |
 |------------|----------------|------------|
-| Estudiante | maria@esucar.com     | 1234       |
-| Docente    | profe@esucar.com     | 1234       |
+| Estudiante | maria@esucar.com     | 123456       |
+| Docente    | profe@esucar.com     | 123456       |
 
 Se definen en `data/DatosIniciales.kt`.
