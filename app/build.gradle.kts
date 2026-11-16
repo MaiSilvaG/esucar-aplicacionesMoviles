@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     //sqlite
     id("com.google.devtools.ksp") version "2.3.2"
 }
@@ -31,9 +32,18 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
     buildFeatures {
         compose = true
+    }
+}
+
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "io.ktor") {
+            useVersion("3.1.3")
+        }
     }
 }
 
@@ -68,4 +78,15 @@ dependencies {
     ksp("androidx.room:room-compiler:$room_version")
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+
+    //supabase
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.2.0"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:auth-kt")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
+    implementation("io.ktor:ktor-client-okhttp:3.1.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+
+    //necesario para minSdk 24
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

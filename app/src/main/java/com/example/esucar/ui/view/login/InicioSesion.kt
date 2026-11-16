@@ -1,6 +1,5 @@
 package com.example.esucar.ui.view.login
 
-import android.app.Application
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,13 +30,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.esucar.data.AppDatabase
 import com.example.esucar.data.Sesion
-import com.example.esucar.data.entity.Usuario
 import com.example.esucar.ui.view.navigation.Destination
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.Image
@@ -49,19 +45,26 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.esucar.R
 import com.example.esucar.ui.view.navigation.AuthDestination
+import com.example.esucar.data.model.Usuario
+import com.example.esucar.data.remote.Repositorio
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.ViewModel
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.text.input.VisualTransformation
 
 private const val SIGLA = "ESUCAR"
 private const val NOMBRE_COMPLETO = "Escuela de Suboficiales de Carabineros de Chile"
-class LoginViewModel(app: Application): AndroidViewModel(app){
-    private val db = AppDatabase.getInstance(app)
-
-    fun iniciarSesion(correo: String, contrasena: String, resultado: (Usuario?) -> Unit){
+class LoginViewModel : ViewModel() {
+    fun iniciarSesion(correo: String, contrasena: String, resultado: (Usuario?) -> Unit) {
         viewModelScope.launch {
-            val usuario = db.usuarioDao().iniciarSesion(correo.trim(),contrasena)
+            val usuario = Repositorio.iniciarSesion(correo.trim(), contrasena)
             resultado(usuario)
         }
     }
 }
+
 @Composable
 fun Login(navController: NavController) {
     Scaffold{ innerPadding ->
@@ -90,6 +93,19 @@ fun InicioSesion(navController: NavController,
     var correo by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            Sesion.restaurar()
+            if (Sesion.usuario != null) {
+                navController.navigate(Destination.HOME.route) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        } catch (e: Exception) {
+            // sin internet o sin sesion: se queda en el login
+        }
+    }
 
     Column(
         Modifier
@@ -128,14 +144,11 @@ fun InicioSesion(navController: NavController,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth()
         )
-        OutlinedTextField(
+        CampoContrasena(
             value = contrasena,
-            onValueChange = {contrasena = it},
-            label = {Text("Contraseña")},
-            placeholder = {Text("Ingrese su contraseña")},
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            onValueChange = { contrasena = it },
+            label = "Contraseña",
+            placeholder = "Ingrese su contraseña",
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -154,14 +167,13 @@ fun InicioSesion(navController: NavController,
                     error = "Completa el correo y la contraseña"
                 }
                 else{
-                    viewModel.iniciarSesion(correo,contrasena){usuario ->
-                        if(usuario == null){
+                    viewModel.iniciarSesion(correo, contrasena) { usuario ->
+                        if (usuario == null) {
                             error = "Correo o contraseña incorrectos"
-                        }
-                        else{
+                        } else {
                             error = null
                             Sesion.iniciar(usuario)
-                            navController.navigate(Destination.HOME.route){
+                            navController.navigate(Destination.HOME.route) {
                                 popUpTo(0) { inclusive = true }
                             }
                         }
@@ -199,4 +211,37 @@ fun InicioSesion(navController: NavController,
             }
         }
     }
+}
+
+@Composable
+fun CampoContrasena(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    placeholder: String = ""
+) {
+    var visible by remember { mutableStateOf(false) }
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = { if (placeholder.isNotEmpty()) Text(placeholder) },
+        singleLine = true,
+        visualTransformation = if (visible) VisualTransformation.None
+        else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        trailingIcon = {
+            IconButton(onClick = { visible = !visible }) {
+                Icon(
+                    imageVector = if (visible) Icons.Default.VisibilityOff
+                    else Icons.Default.Visibility,
+                    contentDescription = if (visible) "Ocultar contraseña"
+                    else "Mostrar contraseña"
+                )
+            }
+        },
+        modifier = modifier
+    )
 }

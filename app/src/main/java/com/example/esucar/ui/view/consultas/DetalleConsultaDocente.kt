@@ -24,7 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.esucar.data.relation.ConsultaDetalle
+import com.example.esucar.data.model.ConsultaDetalle
 import androidx.compose.foundation.layout.imePadding
 
 @Composable

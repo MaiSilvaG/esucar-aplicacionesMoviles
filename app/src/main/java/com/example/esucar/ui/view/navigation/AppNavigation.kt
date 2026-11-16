@@ -23,7 +23,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.esucar.model.SubDestination
+import com.example.esucar.rutas.SubDestination
 
 //paginas
 import com.example.esucar.ui.view.asignaturas.Asignaturas

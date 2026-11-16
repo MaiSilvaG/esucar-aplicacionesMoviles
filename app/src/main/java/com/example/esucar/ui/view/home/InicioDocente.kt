@@ -9,15 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -25,19 +22,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.esucar.data.Sesion
-import com.example.esucar.model.SubDestination
+import com.example.esucar.rutas.SubDestination
 import com.example.esucar.ui.view.home.AsignaturasCard
 import com.example.esucar.ui.view.home.InicioViewModel
 import com.example.esucar.ui.view.home.TarjetaConsulta
 import com.example.esucar.ui.view.navigation.Destination
+import androidx.compose.foundation.lazy.items
 
 @Composable
 fun InicioDocente(innerPadding: PaddingValues,
                   navController: NavController,
                   viewModel: InicioViewModel
 ) {
-    val lista by viewModel.asignaturas.collectAsState()
-    val pendientes by viewModel.consultasPendientes.collectAsState()
+    val lista = viewModel.asignaturas
+    val pendientes = viewModel.consultasPendientes
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

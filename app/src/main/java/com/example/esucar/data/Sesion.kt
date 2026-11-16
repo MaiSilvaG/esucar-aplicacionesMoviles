@@ -3,17 +3,28 @@ package com.example.esucar.data
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.example.esucar.data.entity.Roles
-import com.example.esucar.data.entity.Usuario
+import com.example.esucar.data.model.Roles
+import com.example.esucar.data.model.Usuario
+import com.example.esucar.data.remote.Repositorio
 
-//guardar quien inicio sesion
-object Sesion{
+object Sesion {
     var usuario by mutableStateOf<Usuario?>(null)
         private set
 
     val esDocente: Boolean
         get() = usuario?.rol == Roles.DOCENTE
 
-    fun iniciar(u: Usuario){usuario = u}
-    fun cerrar(){usuario == null}
+    fun iniciar(u: Usuario) { usuario = u }
+
+    suspend fun cerrar() {
+        try {
+            Repositorio.cerrarSesion()
+        } finally {
+            usuario = null
+        }
+    }
+
+    suspend fun restaurar() {
+        usuario = Repositorio.perfilActual()
+    }
 }

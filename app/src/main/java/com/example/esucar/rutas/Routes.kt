@@ -1,4 +1,4 @@
-package com.example.esucar.model
+package com.example.esucar.rutas
 
 
 //archivo con las rutas de las pantallas secundarios

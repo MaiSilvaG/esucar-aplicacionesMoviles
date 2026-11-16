@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,8 +18,8 @@ fun PerfilDocente(innerPadding: PaddingValues,
                   navController: NavController,
                   viewModel: PerfilViewModel
 ) {
-    val lista by viewModel.asignaturas.collectAsState()
-    val pendientes by viewModel.consultasPendientes.collectAsState()
+    val lista = viewModel.asignaturas
+    val pendientes = viewModel.consultasPendientes
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

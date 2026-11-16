@@ -9,17 +9,15 @@ import androidx.navigation.NavController
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import com.example.esucar.rutas.SubDestination
 import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.collectAsState
-import com.example.esucar.model.SubDestination
-import androidx.compose.runtime.getValue
 
 @Composable
 fun ConsultasDocente(innerPadding: PaddingValues,
                      navController: NavController,
                      viewModel: ConsultasViewModel
 ) {
-    val lista by viewModel.consultas.collectAsState()
+    val lista = viewModel.consultas
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

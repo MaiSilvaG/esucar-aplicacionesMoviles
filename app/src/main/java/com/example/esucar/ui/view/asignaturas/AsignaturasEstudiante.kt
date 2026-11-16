@@ -10,10 +10,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.esucar.model.SubDestination
-import androidx.compose.runtime.collectAsState
+import com.example.esucar.rutas.SubDestination
 import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.getValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,7 +19,7 @@ fun AsignaturasEstudiante(innerPadding: PaddingValues,
                           navController: NavController,
                           viewModel: AsignaturasViewModel
 ){
-    val lista by viewModel.asignaturas.collectAsState()
+    val lista = viewModel.asignaturas
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

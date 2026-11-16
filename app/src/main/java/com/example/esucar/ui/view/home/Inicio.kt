@@ -1,6 +1,5 @@
 package com.example.esucar.ui.view.home
 
-import android.app.Application
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -40,28 +39,42 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.esucar.R
-import com.example.esucar.data.AppDatabase
 import com.example.esucar.ui.view.navigation.AuthDestination
 import com.example.esucar.ui.view.navigation.Destination
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
 import com.example.esucar.data.Sesion
-import com.example.esucar.data.relation.AsignaturaConProgreso
 import com.example.esucar.ui.view.docente.InicioDocente
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
+import com.example.esucar.data.model.AsignaturaConProgreso
+import com.example.esucar.data.remote.Repositorio
+import com.example.esucar.ui.view.perfil.cerrarSesionYSalir
+import kotlinx.coroutines.launch
 
-class InicioViewModel(app: Application) : AndroidViewModel(app){
-    private val db = AppDatabase.getInstance(app)
+class InicioViewModel : ViewModel() {
+    var asignaturas by mutableStateOf<List<AsignaturaConProgreso>>(emptyList())
+        private set
+    var consultasPendientes by mutableIntStateOf(0)
+        private set
 
-    val asignaturas = db.asignaturaDao().obtenerConProgreso()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val consultasPendientes = db.consultaDao().contarPendientes()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000),0)
+    fun cargar() {
+        viewModelScope.launch {
+            try {
+                asignaturas = Repositorio.asignaturasConProgreso()
+                consultasPendientes = Repositorio.contarPendientes()
+            } catch (e: Exception) {
+                // sin internet u otro error: se mantienen los datos anteriores
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,6 +83,9 @@ fun Inicio(navController: NavController,
            viewModel: InicioViewModel= viewModel()
 ) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) { viewModel.cargar() }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -95,11 +111,7 @@ fun Inicio(navController: NavController,
                         )
                     }
 
-                    IconButton(onClick = {
-                        navController.navigate(AuthDestination.LOGIN){
-                            popUpTo(0){inclusive = true}
-                        }
-                    }) {
+                    IconButton(onClick = {cerrarSesionYSalir(scope,navController)}) {
                         Icon(
                             Icons.AutoMirrored.Filled.Login,
                             "login"

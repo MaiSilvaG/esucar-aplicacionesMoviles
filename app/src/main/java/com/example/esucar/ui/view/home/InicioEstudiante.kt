@@ -24,12 +24,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.esucar.model.SubDestination
-import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import com.example.esucar.rutas.SubDestination
 import com.example.esucar.data.Sesion
-import com.example.esucar.data.relation.AsignaturaConProgreso
+import com.example.esucar.data.model.AsignaturaConProgreso
+import androidx.compose.foundation.lazy.items
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +36,7 @@ fun InicioEstudiante(innerPadding: PaddingValues,
                      navController: NavController,
                      viewModel: InicioViewModel
 ) {
-    val lista by viewModel.asignaturas.collectAsState()
+    val lista = viewModel.asignaturas
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

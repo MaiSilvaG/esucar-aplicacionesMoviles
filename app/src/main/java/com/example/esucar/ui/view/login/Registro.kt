@@ -1,6 +1,5 @@
 package com.example.esucar.ui.view.login
 
-import android.app.Application
 import android.util.Patterns
 import android.widget.Toast
 import androidx.compose.foundation.Image
@@ -34,39 +33,42 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.esucar.R
-import com.example.esucar.data.AppDatabase
-import com.example.esucar.data.entity.Roles
-import com.example.esucar.data.entity.Usuario
 import com.example.esucar.ui.view.navigation.AuthDestination
 import kotlinx.coroutines.launch
+import androidx.lifecycle.ViewModel
+import com.example.esucar.data.model.Roles
+import com.example.esucar.data.remote.Repositorio
+import androidx.compose.material3.FilterChip
 
-class RegistroViewModel(app: Application): AndroidViewModel(app){
-    private val db = AppDatabase.getInstance(app)
-
+class RegistroViewModel : ViewModel() {
     fun registrar(
         nombre: String,
-        correro: String,
+        correo: String,
         contrasena: String,
-        resultado: (Boolean) -> Unit
-    ){
+        rol: String,
+        resultado: (String?) -> Unit
+    ) {
         viewModelScope.launch {
-            val id = db.usuarioDao().insertar(
-                Usuario(
-                    nombre = nombre.trim(),
-                    correo = correro.trim().lowercase(),
-                    contrasena = contrasena,
-                    rol = Roles.ESTUDIANTE
+            try {
+                Repositorio.registrar(nombre.trim(), correo.trim().lowercase(), contrasena, rol)
+                Repositorio.cerrarSesion()
+                resultado(null)
+            } catch (e: Exception) {
+                val msg = e.message.orEmpty().lowercase()
+                resultado(
+                    when {
+                        "already" in msg -> "Ese correo ya esta registrado"
+                        "password" in msg -> "La contraseña debe tener al menos 6 caracteres"
+                        else -> "No se pudo crear la cuenta: ${e.message}"
+                    }
                 )
-            )
-            resultado(id != -1L)
+            }
         }
     }
 }
@@ -98,6 +100,7 @@ fun FormularioRegistro(
     var correo by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
     var confirmar by remember { mutableStateOf("") }
+    var rol by remember { mutableStateOf(Roles.ESTUDIANTE) }
     var error by remember { mutableStateOf<String?>(null) }
     var guardando by remember { mutableStateOf(false) }
 
@@ -150,24 +153,34 @@ fun FormularioRegistro(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth()
         )
-        OutlinedTextField(
+        CampoContrasena(
             value = contrasena,
             onValueChange = { contrasena = it },
-            label = { Text("Contraseña") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            label = "Contraseña",
             modifier = Modifier.fillMaxWidth()
         )
-        OutlinedTextField(
+        CampoContrasena(
             value = confirmar,
             onValueChange = { confirmar = it },
-            label = { Text("Confirmar contraseña") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            label = "Confirmar contraseña",
             modifier = Modifier.fillMaxWidth()
         )
+
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = rol == Roles.ESTUDIANTE,
+                onClick = { rol = Roles.ESTUDIANTE },
+                label = { Text("Estudiante") }
+            )
+            FilterChip(
+                selected = rol == Roles.DOCENTE,
+                onClick = { rol = Roles.DOCENTE },
+                label = { Text("Docente") }
+            )
+        }
 
         error?.let {
             Text(
@@ -189,14 +202,17 @@ fun FormularioRegistro(
                     !Patterns.EMAIL_ADDRESS.matcher(correoLimpio).matches() ->
                         error = "Ingresa un correo valido"
 
+                    contrasena.length < 6 ->
+                        error = "La contraseña debe tener al menos 6 caracteres"
+
                     contrasena != confirmar ->
                         error = "Las contraseñas no coinciden"
 
                     else -> {
                         error = null
                         guardando = true
-                        viewModel.registrar(nombre, correoLimpio, contrasena) { creada ->
-                            if (creada) {
+                        viewModel.registrar(nombre, correoLimpio, contrasena, rol) { mensajeError ->
+                            if (mensajeError == null) {
                                 Toast.makeText(
                                     context,
                                     "Cuenta creada. Ahora inicia sesion",
@@ -205,7 +221,7 @@ fun FormularioRegistro(
                                 irALogin()
                             } else {
                                 guardando = false
-                                error = "Ese correo ya esta registrado"
+                                error = mensajeError
                             }
                         }
                     }

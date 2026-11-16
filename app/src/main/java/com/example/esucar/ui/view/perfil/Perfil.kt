@@ -1,5 +1,6 @@
 package com.example.esucar.ui.view.perfil
 
+import android.app.Application
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -7,6 +8,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,10 +32,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -43,33 +49,80 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import com.example.esucar.ui.view.navigation.AuthDestination
-import com.example.esucar.ui.view.navigation.Destination
-import android.app.Application
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.esucar.data.AppDatabase
+import androidx.navigation.NavController
 import com.example.esucar.data.Sesion
-import com.example.esucar.data.relation.AsignaturaConProgreso
+import com.example.esucar.data.local.DescargaMaterial
+import com.example.esucar.data.local.DescargasRepositorio
+import com.example.esucar.data.model.AsignaturaConProgreso
+import com.example.esucar.data.remote.Repositorio
+import com.example.esucar.ui.view.navigation.AuthDestination
+import com.example.esucar.ui.view.navigation.Destination
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class PerfilViewModel(app: Application) : AndroidViewModel(app) {
-    private val db = AppDatabase.getInstance(app)
+    private val descargasRepo = DescargasRepositorio(app)
 
-    val asignaturas = db.asignaturaDao().obtenerConProgreso()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val consultasPendientes = db.consultaDao().contarPendientes()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000),0)
+    var asignaturas by mutableStateOf<List<AsignaturaConProgreso>>(emptyList())
+        private set
+    var consultasPendientes by mutableIntStateOf(0)
+        private set
+
+    val descargados: StateFlow<List<DescargaMaterial>> =
+        snapshotFlow { Sesion.usuario?.id }
+            .flatMapLatest { id ->
+                if (id == null) flowOf(emptyList()) else descargasRepo.observarDescargas(id)
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun cargar() {
+        viewModelScope.launch {
+            try {
+                asignaturas = Repositorio.asignaturasConProgreso()
+                consultasPendientes = Repositorio.contarPendientes()
+            } catch (e: Exception) {
+                // sin internet u otro error: se mantienen los datos anteriores
+            }
+        }
+    }
+
+    fun abrir(context: android.content.Context, d: DescargaMaterial) =
+        descargasRepo.abrir(context, d)
+
+    fun eliminar(d: DescargaMaterial) {
+        viewModelScope.launch { descargasRepo.eliminar(d.materialId, d.usuarioId) }
+    }
 }
 
+//Cierra la sesion en Supabase y vuelve al login
+fun cerrarSesionYSalir(scope: CoroutineScope, navController: NavController) {
+    scope.launch {
+        try {
+            Sesion.cerrar()
+        } catch (e: Exception) {
+            //aunque falle el cierre remoto, se devuelve al login
+        }
+        navController.navigate(AuthDestination.LOGIN) {
+            popUpTo(0) { inclusive = true }
+        }
+    }
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Perfil(navController: NavController, viewModel: PerfilViewModel = viewModel()) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) { viewModel.cargar() }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -95,11 +148,7 @@ fun Perfil(navController: NavController, viewModel: PerfilViewModel = viewModel(
                         )
                     }
 
-                    IconButton(onClick = {
-                        navController.navigate(AuthDestination.LOGIN){
-                            popUpTo(0){inclusive = true}
-                        }
-                    }) {
+                    IconButton(onClick = {cerrarSesionYSalir(scope,navController)}) {
                         Icon(
                             Icons.AutoMirrored.Filled.Login,
                             "login"
@@ -239,12 +288,10 @@ fun Configuracion(){
 
 @Composable
 fun BotonCerrarSesion(navController: NavController){
+    val scope = rememberCoroutineScope()
+
     Button(
-        onClick = {
-            navController.navigate(AuthDestination.LOGIN){
-                popUpTo(0) {inclusive = true}
-            }
-        },
+        onClick = {cerrarSesionYSalir(scope, navController)},
         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
     ) {
         Icon(

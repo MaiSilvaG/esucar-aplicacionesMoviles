@@ -1,6 +1,5 @@
 package com.example.esucar.ui.view.consultas
 
-import android.app.Application
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,8 +18,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,26 +31,40 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.esucar.data.AppDatabase
-import com.example.esucar.data.relation.ConsultaDetalle
-import com.example.esucar.ui.view.navigation.AuthDestination
-import com.example.esucar.ui.view.navigation.Destination
-import androidx.compose.runtime.getValue
-import androidx.lifecycle.viewModelScope
 import com.example.esucar.data.Sesion
-import com.example.esucar.data.entity.Consulta
+import com.example.esucar.data.model.Consulta
+import com.example.esucar.data.model.ConsultaDetalle
+import com.example.esucar.data.remote.Repositorio
+import com.example.esucar.ui.view.navigation.Destination
+import com.example.esucar.ui.view.perfil.cerrarSesionYSalir
 import kotlinx.coroutines.launch
 
-class DetalleConsultaViewModel(app: Application): AndroidViewModel(app){
-    private val db = AppDatabase.getInstance(app)
+class DetalleConsultaViewModel : ViewModel() {
+    var detalle by mutableStateOf<ConsultaDetalle?>(null)
+        private set
 
-    fun consulta(id: Int) = db.consultaDao().obtenerPorId(id)
-    fun responder(id: Int, respuesta: String){
+    fun cargar(id: Int) {
         viewModelScope.launch {
-            db.consultaDao().responder(id,respuesta.trim())
+            try {
+                detalle = Repositorio.consulta(id)
+            } catch (e: Exception) {
+                // sin internet u otro error
+            }
+        }
+    }
+
+    fun responder(id: Int, respuesta: String) {
+        viewModelScope.launch {
+            try {
+                Repositorio.responder(id, respuesta.trim())
+                detalle = Repositorio.consulta(id)
+            } catch (e: Exception) {
+                // sin internet u otro error
+            }
         }
     }
 }
@@ -60,8 +76,10 @@ fun DetalleConsulta(consultaId: Int,
                     viewModel: DetalleConsultaViewModel = viewModel()
 ){
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
-    val item by remember(consultaId) {viewModel.consulta(consultaId)  }
-        .collectAsState(initial = null)
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(consultaId) { viewModel.cargar(consultaId) }
+    val item = viewModel.detalle
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -95,11 +113,7 @@ fun DetalleConsulta(consultaId: Int,
                         )
                     }
 
-                    IconButton(onClick = {
-                        navController.navigate(AuthDestination.LOGIN){
-                            popUpTo(0){inclusive = true}
-                        }
-                    }) {
+                    IconButton(onClick = {cerrarSesionYSalir(scope, navController)}) {
                         Icon(
                             Icons.AutoMirrored.Filled.Login,
                             "login"

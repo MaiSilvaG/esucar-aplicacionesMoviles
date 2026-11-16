@@ -1,9 +1,10 @@
 package com.example.esucar.ui.view.consultas
 
-import android.app.Application
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,81 +13,90 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import com.example.esucar.ui.view.navigation.Destination
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.automirrored.filled.Login
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberTopAppBarState
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.esucar.data.AppDatabase
-import com.example.esucar.data.entity.Asignatura
-import com.example.esucar.data.entity.Consulta
-import com.example.esucar.data.entity.Unidad
-import com.example.esucar.ui.view.navigation.AuthDestination
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import androidx.navigation.NavController
+import com.example.esucar.data.Sesion
+import com.example.esucar.data.model.Asignatura
+import com.example.esucar.data.model.Consulta
+import com.example.esucar.data.model.Unidad
+import com.example.esucar.data.remote.Repositorio
+import com.example.esucar.ui.view.navigation.Destination
+import com.example.esucar.ui.view.perfil.cerrarSesionYSalir
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.example.esucar.data.Sesion
-import com.example.esucar.data.entity.Roles
-class FormularioConsultaViewModel(app: Application): AndroidViewModel(app){
-    private val db = AppDatabase.getInstance(app)
 
-    val asignaturas = db.asignaturaDao().obtenerConProgreso()
-        .map { lista -> lista.map{it.asignatura} }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+class FormularioConsultaViewModel : ViewModel() {
+    var asignaturas by mutableStateOf<List<Asignatura>>(emptyList())
+        private set
+    var unidades by mutableStateOf<List<Unidad>>(emptyList())
+        private set
 
-    fun unidades(asignaturaId: Int) = db.unidadDao().obtenerMateriales(asignaturaId)
-        .map { lista -> lista.map{it.unidad} }
-
-    fun guardar(consulta: Consulta, alTerminar: () -> Unit){
+    init {
         viewModelScope.launch {
-            val docente = db.usuarioDao().obtenerPorRol(Roles.DOCENTE)?.nombre
-                ?: "Sin Docente Registrado"
-            db.consultaDao().insertar(consulta.copy(docente = docente))
-            alTerminar()
+            try {
+                asignaturas = Repositorio.asignaturasConProgreso().map { it.asignatura }
+            } catch (e: Exception) {
+                // sin internet u otro error
+            }
+        }
+    }
+
+    fun cargarUnidades(asignaturaId: Int) {
+        unidades = emptyList()
+        viewModelScope.launch {
+            try {
+                unidades = Repositorio.unidadesConMateriales(asignaturaId).map { it.unidad }
+            } catch (e: Exception) {
+                // sin internet u otro error
+            }
+        }
+    }
+
+    fun guardar(consulta: Consulta, alTerminar: () -> Unit, alFallar: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val docente = Repositorio.primerDocente()?.nombre
+                    ?: "Sin Docente Registrado"
+                Repositorio.crearConsulta(
+                    asignaturaId = consulta.asignaturaId,
+                    unidadId = consulta.unidadId,
+                    estudiante = consulta.estudiante,
+                    docente = docente,
+                    asunto = consulta.asunto,
+                    contenido = consulta.contenido,
+                    fecha = consulta.fecha
+                )
+                alTerminar()
+            } catch (e: Exception) {
+                alFallar()
+            }
         }
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FormularioConsulta(navController: NavController,
                        viewModel: FormularioConsultaViewModel = viewModel()
 ) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val scope = rememberCoroutineScope()
     var asignatura by remember { mutableStateOf<Asignatura?>(null) }
     var unidad by remember { mutableStateOf<Unidad?>(null) }
     var asunto by remember { mutableStateOf("") }
     var mensaje by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
 
     var expandirAsignatura by remember { mutableStateOf(false) }
     var expandirUnidad by remember {mutableStateOf(false) }
 
-    val asignaturas by viewModel.asignaturas.collectAsState()
-    val unidades by remember(asignatura?.id) {
-        asignatura?.let { viewModel.unidades(it.id) } ?: flowOf(emptyList<Unidad>())
-    }.collectAsState(initial = emptyList())
+    val asignaturas = viewModel.asignaturas
+    val unidades = viewModel.unidades
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -120,11 +130,7 @@ fun FormularioConsulta(navController: NavController,
                         )
                     }
 
-                    IconButton(onClick = {
-                        navController.navigate(AuthDestination.LOGIN){
-                            popUpTo(0){inclusive = true}
-                        }
-                    }) {
+                    IconButton(onClick = {cerrarSesionYSalir(scope, navController)}) {
                         Icon(
                             Icons.AutoMirrored.Filled.Login,
                             "login"
@@ -174,6 +180,7 @@ fun FormularioConsulta(navController: NavController,
                                     {
                                         asignatura = opcion
                                         unidad = null
+                                        viewModel.cargarUnidades(opcion.id)
                                         expandirAsignatura = false}
                                 )
                             }
@@ -232,13 +239,18 @@ fun FormularioConsulta(navController: NavController,
                         maxLines = 6
                     )
 
+                    error?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, fontSize = 14.sp)
+                    }
+
                     Spacer(Modifier.height(8.dp))
 
                     Button(
                         onClick = {
                             val a = asignatura
                             val u = unidad
-                            if(a != null && u != null && asunto.isNotBlank() && mensaje.isNotBlank()){
+                            if (a != null && u != null && asunto.isNotBlank() && mensaje.isNotBlank()) {
+                                error = null
                                 viewModel.guardar(
                                     Consulta(
                                         asignaturaId = a.id,
@@ -251,8 +263,10 @@ fun FormularioConsulta(navController: NavController,
                                             .format(Date()),
                                         respondida = false,
                                         respuesta = null
-                                    )
-                                ) {navController.popBackStack()}
+                                    ),
+                                    alTerminar = { navController.popBackStack() },
+                                    alFallar = { error = "No se pudo enviar la consulta. Revisa tu conexion." }
+                                )
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
