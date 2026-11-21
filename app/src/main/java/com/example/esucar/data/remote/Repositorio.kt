@@ -14,6 +14,11 @@ object Repositorio {
     private val uid: String
         get() = db.auth.currentUserOrNull()?.id ?: error("No hay sesión iniciada")
 
+    suspend fun idSesionLocal(): String? {
+        db.auth.awaitInitialization()
+        return db.auth.currentUserOrNull()?.id
+    }
+
     suspend fun iniciarSesion(correo: String, contrasena: String): Usuario? {
         return try {
             db.auth.signInWith(Email) {

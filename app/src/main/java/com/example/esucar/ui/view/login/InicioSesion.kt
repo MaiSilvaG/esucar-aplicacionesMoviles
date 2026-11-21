@@ -52,6 +52,7 @@ import androidx.lifecycle.ViewModel
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.VisualTransformation
 
 private const val SIGLA = "ESUCAR"
@@ -94,17 +95,14 @@ fun InicioSesion(navController: NavController,
     var contrasena by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
         try {
-            Sesion.restaurar()
+            Sesion.restaurar(context)
             if (Sesion.usuario != null) {
-                navController.navigate(Destination.HOME.route) {
-                    popUpTo(0) { inclusive = true }
-                }
+                navController.navigate(Destination.HOME.route) { popUpTo(0) { inclusive = true } }
             }
-        } catch (e: Exception) {
-            // sin internet o sin sesion: se queda en el login
-        }
+        } catch (e: Exception) { }
     }
 
     Column(
@@ -172,7 +170,7 @@ fun InicioSesion(navController: NavController,
                             error = "Correo o contraseña incorrectos"
                         } else {
                             error = null
-                            Sesion.iniciar(usuario)
+                            Sesion.iniciar(context, usuario)
                             navController.navigate(Destination.HOME.route) {
                                 popUpTo(0) { inclusive = true }
                             }

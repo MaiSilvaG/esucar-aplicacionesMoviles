@@ -13,6 +13,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -23,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.esucar.data.Sesion
 import com.example.esucar.rutas.SubDestination
 
 //paginas
@@ -65,6 +67,14 @@ fun AppNavHost(
     val rutaActual = pantallaActual?.destination?.route
     val mostrarBarra = rutaActual != AuthDestination.LOGIN &&
             rutaActual != AuthDestination.REGISTRO
+
+    val usuario = Sesion.usuario
+    LaunchedEffect(usuario, rutaActual) {
+        val esAuth = rutaActual == AuthDestination.LOGIN || rutaActual == AuthDestination.REGISTRO
+        if (usuario == null && rutaActual != null && !esAuth) {
+            navController.navigate(AuthDestination.LOGIN) { popUpTo(0) { inclusive = true } }
+        }
+    }
 
     Scaffold(
         modifier = modifier,

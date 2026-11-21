@@ -23,6 +23,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.esucar.data.Sesion
 import com.example.esucar.data.local.ArchivoElegido
 import com.example.esucar.data.local.leerArchivo
 import com.example.esucar.data.model.Asignatura
@@ -112,6 +113,8 @@ fun PublicarMaterial(asignaturaId: Int,
             }
         }
     }
+
+    LaunchedEffect(Unit) { if (!Sesion.esDocente) navController.popBackStack() }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
